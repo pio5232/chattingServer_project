@@ -4,6 +4,7 @@
 
 #include <vector>
 
+using namespace C_Memory;
 using namespace std;
 int main()
 {
@@ -12,4 +13,5 @@ int main()
 	vector<int>v2;
 	v2.push_back(std::move(v[1]));
 	int a = 3;
+	MemoryPool<4> memPool;
 }

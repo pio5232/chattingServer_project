@@ -3,7 +3,7 @@
 #include <queue>
 #include <vector>
 
-namespace C_MEMORY
+namespace C_Memory
 {
 	enum : int
 	{
@@ -109,51 +109,71 @@ namespace C_MEMORY
 		Node* next;
 	};
 
+	template <int N>
+	using PoolNode = Node<N>;
 	/*---------------------------------------
 		Memory Pool (memoryHeader + size)
 	---------------------------------------*/
 	template <int AllocSize> // pool Allocation Size
 	class MemoryPool final
 	{
-		using PoolNode = Node<AllocSize>;
-
-		MemoryPool(uint managedCnt = 0) : _useCount(0), _managedCnt(managedCnt), _top(nullptr)
+		
+	public:
+		MemoryPool(uint managedCnt = 0) : _useCount(0), _managedCount(managedCnt), _top(nullptr)
 		{
-			for (int i = 0; i < _managedCnt; i++)
+			for (int i = 0; i < _managedCount; i++)
 			{
-				RegistNode(static_cast<PoolNode*>(_aligned_malloc(AllocSize,64)));
+				RegistNode(static_cast<PoolNode<AllocSize>*>(_aligned_malloc(AllocSize,64)));
 			}
-			_freeCount = _managedCnt;
+			_totalNodeCount = _managedCount;
 
 			TODO_TLS_LOG_SUCCESS; 
 		}
 		~MemoryPool()
 		{
+			while (_top)
+			{
+				PoolNode<AllocSize>* next = _top->next;
+				
+				_aligned_free(_top);
 
+				_top = next;
+
+				--_totalNodeCount;
+			}
+			
+			// comparee : freeCount == 0 success
+			if (_totalNodeCount == 0)
+			{
+				TODO_TLS_LOG_SUCCESS;
+			}
+			else
+			{
+				TODO_TLS_LOG_ERROR;
+			}
 		}
 
 		void* Alloc()
 		{
-			
-			--_useCount;
+			++_useCount;
 		}
 
 		void Free(void* ptr)
 		{
-			++_freeCount;
+			++_totalNodeCount;
 		}
 	private:
-		inline void RegistNode(PoolNode* newNode)
+		inline void RegistNode(PoolNode<AllocSize>* newNode)
 		{
 			newNode->next = _top;
 			_top = newNode;
 		}
 
-		PoolNode* _top;
+		PoolNode<AllocSize>* _top;
 
 		uint _useCount; // Alloced Count
-		uint _freeCount; // free Node Count
-		const uint _managedCnt;
+		uint _totalNodeCount; 
+		const uint _managedCount;
 
 	};
 
@@ -168,6 +188,15 @@ namespace C_MEMORY
 	public:
 		PoolManager() {}
 		~PoolManager() {}
+		void* Alloc()
+		{
+
+		}
+
+		void Free()
+		{
+
+		}
 	private:
 
 	};
