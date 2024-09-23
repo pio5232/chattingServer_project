@@ -23,7 +23,7 @@ namespace C_Utility
 #define TLS_WFUNC TLS_WIDE1(__FUNCTION__)
 #define TLS_WTIMESTAMP TLS_WIDE1(__TIMESTAMP__)
 #define TLS_CHK_AUTO Profiler pro(Wrapper::GetInstance().Get(), TLS_WFUNC)
-#define TLS_CHK_MANUAL(x) Profiler pro(Wrapper::GetInstance().Get(), TLS_WIDE2)
+#define TLS_CHK_MANUAL(x) Profiler pro(Wrapper::GetInstance().Get(), TLS_WIDE2(x))
 
 #define TLS_SAVE(x) (ProfileBoss::GetInstance().SaveFile(L##x))
 #define IGNORE_CALL_COUNT 1
@@ -188,20 +188,6 @@ namespace C_Utility
 		TlsProfileManager* _manager;
 		const WCHAR* _tag;
 	};
-
-	/*-------RAII--------
-		  LockGuard
-	-------------------*/
-
-	class SRWLockGuard
-	{
-	public:
-		SRWLockGuard(SRWLOCK* pLock) : _pLock(pLock) { AcquireSRWLockExclusive(_pLock); }
-		~SRWLockGuard() { ReleaseSRWLockExclusive(_pLock); }
-
-		SRWLOCK* _pLock;
-	};
-
 }
 
 //extern thread_local Wrapper wrapper;

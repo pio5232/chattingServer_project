@@ -1,4 +1,4 @@
-#include "Libs_pch.h"
+#include "LibsPch.h"
 #include "TlsProfiler.h"
 #include <sstream>
 #include <iomanip>
@@ -6,7 +6,6 @@
 #include <utility>
 #include <string>
 using namespace C_Utility;
-#define TLS_PROFILER_EXPORT
 
 //thread_local Wrapper wrapper;
 

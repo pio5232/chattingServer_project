@@ -7,76 +7,98 @@ namespace C_Memory
 {
 	enum : uint
 	{
-		EXTRA_CHUNK_MOVE_SIZE = 100,
-		MEMORY_ALLOC_SIZE = 500, // 
-		POOL_COUNT = (1024 / 32) + (1024 / 128) + (2048 / 256),
+		NODE_ALIGN_SIZE = 16,
+		POOL_ALIGN_SIZE = 32,
+
+		POOL_SIZE_LEVEL_1 = 32,
+		POOL_SIZE_LEVEL_2 = 128,
+		POOL_SIZE_LEVEL_3 = 256,
+
+		POOL_COUNT_LEVEL_1 = 1024 / POOL_SIZE_LEVEL_1,
+		POOL_COUNT_LEVEL_2 = 1024 / POOL_SIZE_LEVEL_2,
+		POOL_COUNT_LEVEL_3 = 2048 / POOL_SIZE_LEVEL_3,
+
+		POOL_COUNT_TO_LEVEL_2 = POOL_COUNT_LEVEL_1 + POOL_COUNT_LEVEL_2,
+		POOL_COUNT_TO_LEVEL_3 = POOL_COUNT_LEVEL_1 + POOL_COUNT_LEVEL_2 + POOL_COUNT_LEVEL_3,
+		
+		EXTRA_CHUNK_MOVE_SIZE = 200,
+		MEMORY_ALLOC_SIZE = 4000, // 
 		MAX_ALLOC_SIZE = 4096
 	};
 
 	enum : MemoryGuard
 	{
-		GUARD_VALUE = 0xcccc,
+		GUARD_VALUE = 0xaabbccdd,
 	};
 
+
+	class PoolInfo
+	{
+	public:
+		static inline uint GetPoolIndex(uint size)
+		{
+			// if vs O(1) hash 비교 필요
+			if (size <= 1024)
+			{
+				if (size % POOL_SIZE_LEVEL_1 == 0)
+					return size / POOL_SIZE_LEVEL_1;
+
+				return (size + POOL_SIZE_LEVEL_1) / POOL_SIZE_LEVEL_1 - 1;
+			}
+
+			size -= 1024;
+			if (size <= 1024)
+			{
+				if (size % POOL_SIZE_LEVEL_2 == 0)
+					return POOL_COUNT_LEVEL_1 + size / POOL_SIZE_LEVEL_2 -1;
+
+				return POOL_COUNT_LEVEL_1 + (size + POOL_SIZE_LEVEL_2) / POOL_SIZE_LEVEL_2 - 1;
+			}
+
+			size -= 1024;
+
+			if (size % POOL_SIZE_LEVEL_3 == 0)
+				return POOL_COUNT_TO_LEVEL_2 + size / POOL_SIZE_LEVEL_3 -1;
+
+			return POOL_COUNT_TO_LEVEL_2 + (size + POOL_SIZE_LEVEL_3) / POOL_SIZE_LEVEL_3 - 1;
+		}
+
+		// MemoryPool을 template으로 만들다보니 placement로 호출하게하는 클래스의 타입도 template으로 할 수 있게 만들어야하지만 
+		// 능력 부족으로 그러지 못했다.
+		static constexpr uint consArray[POOL_COUNT_TO_LEVEL_3] = { 32 * 1, 32 * 2, 32 * 3, 32 * 4, 32 * 5, 32 * 6, 32 * 7, 32 * 8, 32 * 9,
+			32 * 10, 32 * 11, 32 * 12, 32 * 13, 32 * 14, 32 * 15, 32 * 16, 32 * 17, 32 * 18, 32 * 19,
+			32 * 20, 32 * 21, 32 * 22, 32 * 23, 32 * 24, 32 * 25, 32 * 26, 32 * 27, 32 * 28, 32 * 29,
+			32 * 30, 32 * 31, 32 * 32,
+			1024 + 128 * 1, 1024 + 128 * 2, 1024 + 128 * 3, 1024 + 128 * 4, 1024 + 128 * 5, 1024 + 128 * 6, 1024 + 128 * 7, 1024 + 128 * 8,
+			2048 + 256 * 1, 2048 + 256 * 2, 2048 + 256 * 3, 2048 + 256 * 4, 2048 + 256 * 5, 2048 + 256 * 6, 2048 + 256 * 7, 2048 + 256 * 8
+		};
+	};
 	/*--------------------------
 		   MemoryProtector
 	--------------------------*/
 	class MemoryProtector // Use Header + Guard 
 	{
 	public:
-		MemoryProtector(uint size) : _size(size),_frontGuard(GUARD_VALUE) {}
-		/*---------------------------------------------------------------------------------------
-		  Mempool::Alloc : [header + Guard(2bytes) + data + Guard(2bytes) + NextPtr] => [data]
-							 ↑
-							ptr
-		---------------------------------------------------------------------------------------*/
-		static void* Attach(void* ptr, uint size)
-		{
-			new (static_cast<MemoryProtector*>(ptr)) MemoryProtector(size);
-			
-			MemoryGuard* pRightGuard = reinterpret_cast<MemoryGuard*>(reinterpret_cast<char*>(ptr) + size - MemoryProtector::_rightGuardSpace);
-			
-			*pRightGuard = GUARD_VALUE;
+		MemoryProtector(uint size);
 
-			return static_cast<MemoryProtector*>(ptr) + 1;
-		}
+		static void* Attach(void* ptr, uint size);
 
-		/*-------------------------------------------------------------------------------
-												   [ptr]
-													↓
-		  Mempool::Free :[header + Guard(2bytes) + data + Guard(2bytes) + NextPtr]
-		-------------------------------------------------------------------------------*/
-		static MemoryProtector* Detach(void* ptr)
-		{
-			MemoryProtector* base = static_cast<MemoryProtector*>(ptr) - 1;
+		static MemoryProtector* Detach(void* ptr);
 
-			if (base->_frontGuard != GUARD_VALUE) // left guard
-			{
-				std::cout << "Left Guard is Not 0xcccc\n";
-				TODO_TLS_LOG_ERROR
-			}
+		inline uint GetSize() const { return _size; }
 
-			if (*reinterpret_cast<MemoryGuard*>(reinterpret_cast<char*>(ptr) + base->_size - MemoryProtector::_rightGuardSpace) != GUARD_VALUE)
-			{
-				std::cout << "Right Guard is Not 0xcccc\n";
-				TODO_TLS_LOG_ERROR
-			}
-				
-			return base;
-		}
-		inline uint GetSize() const { _size; }
+		static constexpr uint _rightGuardSpace = sizeof(MemoryGuard) + sizeof(void*);
 	private:
 		uint _size; // header->size
 
 		MemoryGuard _frontGuard; // 
 
-		static constexpr uint _rightGuardSpace = sizeof(MemoryGuard) + sizeof(void*);
 	};
 
 	/*-----------------
 			Node
 	------------------*/
-	template <int AllocSize>
+	template <uint AllocSize>
 	struct Node
 	{
 		char c[AllocSize]{};
@@ -84,11 +106,15 @@ namespace C_Memory
 	};
 
 
+	struct NodeChunkBase
+	{
+		virtual ~NodeChunkBase() = 0;
+	};
 	/*-------------------
 		  NodeChunk
 	-------------------*/
-	template <int AllocSize>
-	struct alignas (16) NodeChunk
+	template <uint AllocSize>
+	struct NodeChunk : public NodeChunkBase
 	{
 	public:
 		using PoolNode = Node<AllocSize>;
@@ -108,7 +134,7 @@ namespace C_Memory
 
 			if (_size == 0)
 			{
-				std::cout << "NodeChunk Size is 0 ~ Destructor call successed\n";
+				//std::cout << "NodeChunk Size is 0 ~ Destructor call successed\n";
 				TODO_TLS_LOG_SUCCESS;
 			}
 			else
@@ -118,7 +144,7 @@ namespace C_Memory
 				TODO_TLS_LOG_ERROR;
 			}
 		}
-		inline uint GetSize() const{ return _size; }
+		inline uint GetSize() const { return _size; }
 
 		void* Export() // == Alloc
 		{
@@ -127,7 +153,7 @@ namespace C_Memory
 
 			PoolNode* ret = _head;
 			_head = _head->next;
-			
+
 			--_size;
 			return ret;
 		}
@@ -162,55 +188,64 @@ namespace C_Memory
 		}
 
 		// TODO_추가
-		uint GetPoolSize() { return 1; } // 추가
-
+		uint GetPoolSize(uint allocSize) const { return _chunkKeepingQ[PoolInfo::GetPoolIndex(allocSize)].size(); } // 추가
+		void RegistChunk(uint poolSize, void* nodePtr);
+		void* GetNodeChunk(uint poolSize);
+		IntegrationChunkManager(const IntegrationChunkManager&) = delete;
+		IntegrationChunkManager& operator = (const IntegrationChunkManager&) = delete;
 	private:
-		~IntegrationChunkManager() {}
-		IntegrationChunkManager() {}
+		IntegrationChunkManager() { InitializeSRWLock(&_lock); }
+		~IntegrationChunkManager();
 		SRWLOCK _lock;
+		std::queue<void*> _chunkKeepingQ[POOL_COUNT_TO_LEVEL_3];
 	};
 
 
 
-	/*---------------------------------------
-		Memory Pool (memoryHeader + size)
-	---------------------------------------*/
-	template <int AllocSize> // pool Allocation Size
-	class alignas (32) MemoryPool final
+	class MemoryPoolBase
 	{
-		
 	public:
-		MemoryPool(uint managedCnt = 0) : _managedCount(managedCnt)
+		MemoryPoolBase() {}
+		virtual ~MemoryPoolBase() = 0;
+
+		virtual void* Alloc() abstract = 0;
+		virtual void Free(void* ptr) abstract = 0;
+	};
+
+	/*---------------------------------------
+		Memory Pool (memoryProtector + size)
+	---------------------------------------*/
+	template <uint AllocSize> // pool Allocation Size
+	class MemoryPool final : public MemoryPoolBase
+	{
+
+	public:
+		MemoryPool(uint managedCnt = MEMORY_ALLOC_SIZE) : _managedCount(managedCnt)
 		{
 			MakeChunk(_pInnerChunk);
 			MakeChunk(_pExtraChunk);
 
-			for (int i = 0; i < _managedCount; i++)
+			for (uint i = 0; i < _managedCount; i++)
 			{
 				_pInnerChunk->Regist(_aligned_malloc(AllocSize, 64));
 			}
 
-			TODO_TLS_LOG_SUCCESS; 
+			TODO_TLS_LOG_SUCCESS;
 		}
-		~MemoryPool() 
+		virtual ~MemoryPool() override
 		{
-			DeleteChunk(_pInnerChunk);
+ 			DeleteChunk(_pInnerChunk);
 			DeleteChunk(_pExtraChunk);
 		}
-		inline void MakeChunk(NodeChunk<AllocSize>* nodeChunk)
+		inline void MakeChunk(NodeChunk<AllocSize>*& nodeChunk)
 		{
-			nodeChunk = static_cast<NodeChunk<AllocSize>*>(_aligned_malloc(sizeof(NodeChunk), 16));
-			new (nodeChunk) NodeChunk();
+			nodeChunk = static_cast<NodeChunk<AllocSize>*>(_aligned_malloc(sizeof(NodeChunk<AllocSize>), NODE_ALIGN_SIZE));
+			new (nodeChunk) NodeChunk<AllocSize>();
 		}
 
-		inline void DeleteChunk(NodeChunk<AllocSize>* nodeChunk)
+		void* Alloc() override
 		{
-			nodeChunk->~NodeChunk();
-			_aligned_free(nodeChunk);
-		}
-		inline void* Alloc()
-		{
-			if (_pInnerChunk->GetSize() > 0 )
+			if (_pInnerChunk->GetSize() > 0)
 			{
 				return _pInnerChunk->Export();
 			}
@@ -220,20 +255,23 @@ namespace C_Memory
 				return _pExtraChunk->Export();
 			}
 
-			if (IntegrationChunkManager::GetInstance().GetPoolSize() > 0)
+			if (IntegrationChunkManager::GetInstance().GetPoolSize(AllocSize) > 0)
 			{
 				// TODO_추가
-				DeleteChunk(_pInnerChunk);
+				void* newNodeChunk = IntegrationChunkManager::GetInstance().GetNodeChunk(AllocSize);
 
-				_pInnerChunk = IntegrationChunkManager::GetInstance().GetNodeChunk();
-
-				return _pInnerChunk->Export();
+				if (newNodeChunk != nullptr)
+				{
+					DeleteChunk(_pInnerChunk);
+					_pInnerChunk = reinterpret_cast<NodeChunk<AllocSize>*>(newNodeChunk);
+					return _pInnerChunk->Export();
+				}
 			}
-			else
-				return _aligned_malloc(AllocSize, 64);
+			
+			return _aligned_malloc(AllocSize, 64);
 		}
 
-		inline void Free(void* ptr)
+		void Free(void* ptr) override
 		{
 			if (_pInnerChunk->GetSize() < _managedCount)
 			{
@@ -244,20 +282,17 @@ namespace C_Memory
 			_pExtraChunk->Regist(ptr); // Managing NodeChunk, if (NodeChunk Size -> 100, Regist NodeChunk to Global Manager)
 			if (_pExtraChunk->GetSize() > EXTRA_CHUNK_MOVE_SIZE)
 			{
-				IntegrationChunkManager::GetInstance().RegistChunk(_pExtraChunk);
-				
-				MakeChunk(_pExtraChunk);
+				IntegrationChunkManager::GetInstance().RegistChunk(AllocSize, _pExtraChunk);
 
+				MakeChunk(_pExtraChunk);
 				return;
 			}
 		}
 	private:
-
 		NodeChunk<AllocSize>* _pInnerChunk;
 		NodeChunk<AllocSize>* _pExtraChunk;
 
 		const uint _managedCount;
-
 	};
 
 
@@ -269,22 +304,25 @@ namespace C_Memory
 	class PoolManager final
 	{
 	public:
-		PoolManager() {}
-		~PoolManager() {}
-		void* Alloc()
-		{
+		void* Alloc(uint size);
+		void Free(void* ptr);
 
-		}
+		PoolManager(const PoolManager&) = delete;
+		PoolManager& operator = (const PoolManager&) = delete;
 
-		void Free()
-		{
+		PoolManager();
+		~PoolManager();
 
-		}
 	private:
-
-		// 5,6,7 -> 24 
-		// 24 -> hash table
+		MemoryPoolBase* _pools[POOL_COUNT_TO_LEVEL_3];
 	};
 
-	thread_local PoolManager poolMgr;
+	// -------------------- Global ------------------------
+	inline void DeleteChunk(NodeChunkBase* nodeChunkBase)
+	{
+		nodeChunkBase->~NodeChunkBase();
+		_aligned_free(nodeChunkBase);
+	}
+
 }
+	extern thread_local C_Memory::PoolManager poolMgr;

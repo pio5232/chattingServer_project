@@ -12,7 +12,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Libs_pch.cpp">
+    <ClCompile Include="LibsPch.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="MemoryPool.cpp">
@@ -24,21 +24,28 @@
     <ClCompile Include="TlsProfiler.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="ClientNetwork.cpp">
+    <ClCompile Include="NetClient.cpp">
       <Filter>Network</Filter>
     </ClCompile>
-    <ClCompile Include="INetwork.cpp">
-      <Filter>Network</Filter>
-    </ClCompile>
-    <ClCompile Include="ServerNetwork.cpp">
+    <ClCompile Include="NetServer.cpp">
       <Filter>Network</Filter>
     </ClCompile>
     <ClCompile Include="Functor.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="Utils.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="CCrashDump.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="NetworkBase.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="Session.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Libs_pch.h">
+    <ClInclude Include="LibsPch.h">
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="MemoryPool.h">
@@ -50,13 +57,10 @@
     <ClInclude Include="TlsProfiler.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="ServerNetwork.h">
+    <ClInclude Include="NetServer.h">
       <Filter>Network</Filter>
     </ClInclude>
-    <ClInclude Include="ClientNetwork.h">
-      <Filter>Network</Filter>
-    </ClInclude>
-    <ClInclude Include="INetwork.h">
+    <ClInclude Include="NetClient.h">
       <Filter>Network</Filter>
     </ClInclude>
     <ClInclude Include="Functor.h">
@@ -65,5 +69,15 @@
     <ClInclude Include="Define.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="Utils.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="CCrashDump.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkBase.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Session.h" />
   </ItemGroup>
 </Project>
