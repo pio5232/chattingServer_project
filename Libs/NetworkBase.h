@@ -37,9 +37,13 @@ namespace C_Network
 		virtual void Disconnect() {}
 		virtual void Send() abstract = 0;
 
+		//const NetAddress& GetNetAddr() const { return _netAddr; }
 	private:
+		void WorkerThread();
 		void Init();
 		HANDLE _iocpHandle;
+		std::vector<std::thread> _workerThreads;
+
 		// NetServer -> listen EndPoint
 		// NetClient -> dest EndPoint
 		const NetAddress _netAddr; 

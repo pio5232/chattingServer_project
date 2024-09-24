@@ -18,7 +18,7 @@ namespace C_Network
 		
 	private:
 		SOCKET _listenSock;
-
+		std::thread _acceptThread;
 	};
 
 }

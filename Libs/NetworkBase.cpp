@@ -64,6 +64,14 @@ C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _n
 		CCrash(L"Iocp Handle is Invalid");
 	}
 
+	// max operating count = Concurrent * 2
+	_workerThreads.reserve(concurrentThreadCnt * 2);
+
+	for (int i = 0; i < _workerThreads.capacity(); i++)
+	{
+		_workerThreads[i] = std::thread([=]() {WorkerThread(); });
+	}
+
 	// Print Success and ConcurrentCnt
 	TODO_LOG_SUCCESS;
 }
@@ -71,9 +79,23 @@ C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _n
 C_Network::NetworkBase::~NetworkBase() 
 {
 	WSACleanup();
+
+	for (auto& t : _workerThreads)
+	{
+		if (t.joinable())
+			t.join();
+	}
+
+	TODO_LOG_SUCCESS;
+
+	CloseHandle(_iocpHandle);
 }
 
 
+void C_Network::NetworkBase::WorkerThread()
+{
+
+}
 
 void C_Network::NetworkBase::Init()
 {

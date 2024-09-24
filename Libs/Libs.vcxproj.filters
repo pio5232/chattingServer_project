@@ -42,7 +42,9 @@
     <ClCompile Include="NetworkBase.cpp">
       <Filter>Network</Filter>
     </ClCompile>
-    <ClCompile Include="Session.cpp" />
+    <ClCompile Include="Session.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LibsPch.h">
@@ -78,6 +80,8 @@
     <ClInclude Include="NetworkBase.h">
       <Filter>Network</Filter>
     </ClInclude>
-    <ClInclude Include="Session.h" />
+    <ClInclude Include="Session.h">
+      <Filter>Network</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

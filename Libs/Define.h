@@ -11,7 +11,7 @@ using uint = unsigned int;
 #define TODO_LOG_SUCCESS
 #define TODO_LOG_ERROR
 
-#define TODO_LOG_WRITE
+#define TODO_LOG_ERROR_WSA printf("[WsaGetLastError - %d] \n",WSAGetLastError());
 
 inline void CCrash(const WCHAR* resaon)
 {

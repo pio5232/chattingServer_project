@@ -3,6 +3,8 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <Windows.h>
+#include <thread>
+#include <vector>
 
 #include "Define.h"
 #include "Utils.h"
