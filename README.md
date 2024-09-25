@@ -10,3 +10,5 @@
 할 일.
 WorkerThread 내부 함수에서 메시지를 어떻게 처리할 것인지.
 Session에 대한 설정을 어떻게 할 것인지. 처리부분 생각하고 만들기.
+
+IocpObjBase -> Dispatch 구현 및 Session 틀 잡고 Echo 서버까지 만들어서 테스트해보도록 한다.

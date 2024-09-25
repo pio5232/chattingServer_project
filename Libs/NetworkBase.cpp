@@ -2,9 +2,9 @@
 #include "NetworkBase.h"
 #include <WS2tcpip.h>
 
-/*--------------------
-	  NetAddress
---------------------*/
+	/*--------------------
+		  NetAddress
+	--------------------*/
 
 C_Network::NetAddress::NetAddress(SOCKADDR_IN sockAddr) :_sockAddr(sockAddr) {}
 
@@ -39,11 +39,11 @@ IN_ADDR C_Network::NetAddress::IpToAddr(const WCHAR* ip)
 
 
 
-/*-----------------------
-	  NetworkBase
------------------------*/
+	/*-----------------------
+		  NetworkBase
+	-----------------------*/
 
-C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _netAddr(netAddr)
+C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _netAddr(netAddr), isWorkerRunning(true)
 {
 	SYSTEM_INFO sys;
 	GetSystemInfo(&sys);
@@ -58,7 +58,7 @@ C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _n
 
 	_iocpHandle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, concurrentThreadCnt);
 
-	if (_iocpHandle == INVALID_HANDLE_VALUE)
+	if (_iocpHandle == NULL)
 	{
 		TODO_LOG_ERROR;
 		CCrash(L"Iocp Handle is Invalid");
@@ -69,7 +69,7 @@ C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _n
 
 	for (int i = 0; i < _workerThreads.capacity(); i++)
 	{
-		_workerThreads[i] = std::thread([=]() {WorkerThread(); });
+		_workerThreads[i] = std::thread([this]() {WorkerThread(); });
 	}
 
 	// Print Success and ConcurrentCnt
@@ -94,6 +94,33 @@ C_Network::NetworkBase::~NetworkBase()
 
 void C_Network::NetworkBase::WorkerThread()
 {
+	IocpEvent *iocpEvent;
+	DWORD transferredBytes;
+
+	Session* pSession;
+	while (1)
+	{
+		iocpEvent = nullptr;
+		transferredBytes = 0;
+		pSession = nullptr;
+
+		bool gqcsRet = GetQueuedCompletionStatus(_iocpHandle, &transferredBytes, 
+			reinterpret_cast<PULONG_PTR>(&pSession), reinterpret_cast<LPOVERLAPPED*>(&iocpEvent), INFINITE);
+
+		// if ret == false => pOverlapped = nullptr;
+		if(!iocpEvent)
+		{
+			TODO_LOG_ERROR_WSA;
+			printf("GQCS return is Null\n");
+			isWorkerRunning = false;
+			continue;
+		}
+
+		// if Transferred == 0  => recv 0 
+		SharedIocpBase iocpObjRef = iocpEvent->_owner;
+		
+		iocpObjRef->Dispatch(iocpEvent, transferredBytes);
+	}
 
 }
 
@@ -108,4 +135,55 @@ void C_Network::NetworkBase::Init()
 		CCrash(L"WSAStart Error");
 	}
 
+}
+
+
+
+
+
+	/*-----------------------
+			NetServer
+	-----------------------*/
+C_Network::NetServer::NetServer(NetAddress netAddr, uint maxSessionCnt)
+	: NetworkBase(netAddr, maxSessionCnt)
+{
+	_listenSock = socket(AF_INET, SOCK_STREAM, 0);
+	if (_listenSock == INVALID_SOCKET)
+	{
+		TODO_LOG_ERROR_WSA;
+		CCrash(L"Listen socket is Invalid");
+	}
+
+	DWORD bindRet = bind(_listenSock, (SOCKADDR*)&netAddr.GetSockAddr(), sizeof(SOCKADDR_IN));
+
+	if (bindRet == SOCKET_ERROR)
+	{
+		TODO_LOG_ERROR_WSA;
+		CCrash(L"Bind Error\n");
+	}
+
+	DWORD listenRet = ::listen(_listenSock, SOMAXCONN);
+	if (listenRet == SOCKET_ERROR)
+	{
+		TODO_LOG_ERROR_WSA;
+		CCrash(L"listen Error\n");
+	}
+}
+
+C_Network::NetServer::~NetServer()
+{
+}
+
+
+	/*-----------------------
+			NetClient
+	-----------------------*/
+C_Network::NetClient::NetClient(NetAddress destEndPoint, uint maxSessionCnt)
+	: NetworkBase(destEndPoint, maxSessionCnt)
+{
+
+}
+
+C_Network::NetClient::~NetClient()
+{
 }

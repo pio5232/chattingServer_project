@@ -24,12 +24,6 @@
     <ClCompile Include="TlsProfiler.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="NetClient.cpp">
-      <Filter>Network</Filter>
-    </ClCompile>
-    <ClCompile Include="NetServer.cpp">
-      <Filter>Network</Filter>
-    </ClCompile>
     <ClCompile Include="Functor.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
@@ -45,6 +39,8 @@
     <ClCompile Include="Session.cpp">
       <Filter>Network</Filter>
     </ClCompile>
+    <ClCompile Include="NetworkUtils.cpp" />
+    <ClCompile Include="chattingServer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LibsPch.h">
@@ -58,12 +54,6 @@
     </ClInclude>
     <ClInclude Include="TlsProfiler.h">
       <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="NetServer.h">
-      <Filter>Network</Filter>
-    </ClInclude>
-    <ClInclude Include="NetClient.h">
-      <Filter>Network</Filter>
     </ClInclude>
     <ClInclude Include="Functor.h">
       <Filter>Utils</Filter>
@@ -83,5 +73,7 @@
     <ClInclude Include="Session.h">
       <Filter>Network</Filter>
     </ClInclude>
+    <ClInclude Include="NetworkUtils.h" />
+    <ClInclude Include="chattingServer.h" />
   </ItemGroup>
 </Project>

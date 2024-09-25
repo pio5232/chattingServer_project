@@ -4,12 +4,11 @@
 #include "CCrashDump.h"
 #include <thread>
 #include <chrono>
-#include "NetServer.h"
-
+#include "NetworkBase.h"
 using namespace C_Network;
+NetServer server(NetAddress(std::wstring(L"127.0.0.1"),55555),3000);
 int main()
 {
-
 }
 //using namespace C_Utility;
 ////C_Utility::CCrashDump dump;
