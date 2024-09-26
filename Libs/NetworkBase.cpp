@@ -43,7 +43,7 @@ IN_ADDR C_Network::NetAddress::IpToAddr(const WCHAR* ip)
 		  NetworkBase
 	-----------------------*/
 
-C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _netAddr(netAddr), isWorkerRunning(true)
+C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _netAddr(netAddr)
 {
 	SYSTEM_INFO sys;
 	GetSystemInfo(&sys);
@@ -112,8 +112,8 @@ void C_Network::NetworkBase::WorkerThread()
 		{
 			TODO_LOG_ERROR_WSA;
 			printf("GQCS return is Null\n");
-			isWorkerRunning = false;
-			continue;
+			PostQueuedCompletionStatus(_iocpHandle, 0, 0, nullptr);
+			break;
 		}
 
 		// if Transferred == 0  => recv 0 
@@ -121,7 +121,7 @@ void C_Network::NetworkBase::WorkerThread()
 		
 		iocpObjRef->Dispatch(iocpEvent, transferredBytes);
 	}
-
+	printf("Worker End\n");
 }
 
 void C_Network::NetworkBase::Init()
@@ -168,10 +168,26 @@ C_Network::NetServer::NetServer(NetAddress netAddr, uint maxSessionCnt)
 		TODO_LOG_ERROR_WSA;
 		CCrash(L"listen Error\n");
 	}
+	
+	// TODO_
+	_acceptThread = std::thread(AcceptThread);
 }
 
 C_Network::NetServer::~NetServer()
 {
+}
+
+void C_Network::NetServer::AcceptThread()
+{
+	while (1)
+	{
+		SOCKADDR_IN clientInfo;
+		int infoSize = sizeof(clientInfo);
+		SOCKET clientSock = accept(_listenSock, (SOCKADDR*)&clientInfo, &infoSize);
+		
+		
+		
+	}
 }
 
 

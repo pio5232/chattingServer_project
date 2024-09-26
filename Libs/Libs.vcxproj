@@ -28,6 +28,7 @@
     <ClInclude Include="LibsPch.h" />
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="NetworkUtils.h" />
+    <ClInclude Include="PacketDefiine.h" />
     <ClInclude Include="Session.h" />
     <ClInclude Include="TlsProfiler.h" />
     <ClInclude Include="Utils.h" />

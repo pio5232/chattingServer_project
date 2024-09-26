@@ -1,27 +1,8 @@
 #pragma once
+#include <unordered_map>
 #include "Session.h"
 namespace C_Network
 {
-	/*--------------------
-		  NetAddress
-	--------------------*/
-	class NetAddress
-	{
-	public:
-		NetAddress(SOCKADDR_IN sockAddr);
-		NetAddress(std::wstring ip, uint16 port);
-		NetAddress(const NetAddress& other);
-
-		inline const SOCKADDR_IN& GetSockAddr() const { return _sockAddr; }
-		std::wstring	GetIpAddress();
-		inline const uint16 GetPort() const { return ntohs(_sockAddr.sin_port); }
-
-		static IN_ADDR IpToAddr(const WCHAR* ip);
-	private:
-		SOCKADDR_IN _sockAddr = {};
-	};
-
-
 	/*-----------------------
 			NetworkBase
 	-----------------------*/
@@ -45,7 +26,6 @@ namespace C_Network
 		HANDLE _iocpHandle;
 		std::vector<std::thread> _workerThreads;
 
-		bool isWorkerRunning;
 		// NetServer -> listen EndPoint
 		// NetClient -> dest EndPoint
 	};
@@ -68,9 +48,12 @@ namespace C_Network
 
 		virtual void OnError(int i_error_code, WCHAR* sz_display) = 0;
 
+		void AcceptThread();
+
 	private:
 		SOCKET _listenSock;
 		std::thread _acceptThread;
+		std::unordered_map<ULONGLONG, SharedSession> _sessionMap;
 	};
 
 

@@ -39,8 +39,10 @@
     <ClCompile Include="Session.cpp">
       <Filter>Network</Filter>
     </ClCompile>
-    <ClCompile Include="NetworkUtils.cpp" />
     <ClCompile Include="chattingServer.cpp" />
+    <ClCompile Include="NetworkUtils.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LibsPch.h">
@@ -73,7 +75,12 @@
     <ClInclude Include="Session.h">
       <Filter>Network</Filter>
     </ClInclude>
-    <ClInclude Include="NetworkUtils.h" />
     <ClInclude Include="chattingServer.h" />
+    <ClInclude Include="NetworkUtils.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketDefiine.h">
+      <Filter>Network</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

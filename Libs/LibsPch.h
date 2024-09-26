@@ -16,6 +16,7 @@
 
 #include "Define.h"
 
+#include "NetworkUtils.h"
 #include "Utils.h"
 #include "Session.h"
 
