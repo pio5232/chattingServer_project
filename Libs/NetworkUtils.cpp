@@ -8,7 +8,7 @@ thread_local C_Network::SharedSendBufChunk sendBufChunks;
 void C_Network::RecvBuffer::Reset()
 {
 	uint useSize = UseSize();
-	
+
 	if (useSize == 0)
 	{
 		_readPos = _writePos = 0;
@@ -17,10 +17,12 @@ void C_Network::RecvBuffer::Reset()
 
 	// _readPos < _writePos
 	uint freeSize = FreeSize();
-	if(freeSize < useSize)
-	memcpy(_buffer, &_buffer[_readPos], freeSize);
-	_readPos = 0;
-	_writePos = freeSize;
+	if (freeSize < RECV_BUF_CLEAR_SIZE)
+	{
+		memcpy(&_buffer[0], &_buffer[_readPos], useSize);
+		_readPos = 0;
+		_writePos = useSize;
+	}
 }
 
 bool C_Network::RecvBuffer::MoveReadPos(uint transferredBytes)

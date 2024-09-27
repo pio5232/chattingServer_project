@@ -18,39 +18,39 @@ namespace C_Network
 		// PreRecv, 0 byte Recv
 	};
 
-	class IocpEvent : private OVERLAPPED
+	struct IocpEvent : private OVERLAPPED
 	{
 	public:
 		IocpEvent(IocpEventType type);
 		void Reset();
-		inline const IocpEventType GetType() const { return _type; }
+		//inline const IocpEventType GetType() const { return _type; }
 
 		SharedSession _owner;
 
-	private:
 		const IocpEventType _type;
 	};
 
 
-	class RecvEvent : public IocpEvent
+	struct RecvEvent : public IocpEvent
 	{
 	public:
 		RecvEvent() : IocpEvent(IocpEventType::Recv) {}
 	};
 
-	class SendEvent : public IocpEvent
+	struct SendEvent : public IocpEvent
 	{
 	public:
-		SendEvent() : IocpEvent(IocpEventType::Send) {}
+		SendEvent() : IocpEvent(IocpEventType::Send) { _pendingBuffs.reserve(5); }
+		std::vector<SharedSendBuffer> _pendingBuffs;
 	};
 
-	class ConnectEvent : public IocpEvent
+	struct ConnectEvent : public IocpEvent
 	{
 	public:
 		ConnectEvent() : IocpEvent(IocpEventType::Connect) {}
 	};
 
-	class DisconnectEvent : public IocpEvent
+	struct DisconnectEvent : public IocpEvent
 	{
 	public:
 		DisconnectEvent() : IocpEvent(IocpEventType::Disconnect) {}
@@ -76,10 +76,11 @@ namespace C_Network
 		bool ProcessDisconnect();
 
 		virtual void OnRecvPacket(char* buffer, uint len);
-		virtual void OnConnected();
-		virtual void OnDisconnected();
-		virtual void OnSend();
+		//virtual void OnConnected();
+		//virtual void OnDisconnected();
+		//virtual void OnSend();
 
+		const NetAddress& GetNetAddr() const { return _netAddr; }
 		ULONGLONG GetId () const { return _sessionId; }
 
 	private:

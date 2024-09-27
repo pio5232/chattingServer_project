@@ -43,6 +43,9 @@
     <ClCompile Include="NetworkUtils.cpp">
       <Filter>Network</Filter>
     </ClCompile>
+    <ClCompile Include="EchoServer.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LibsPch.h">
@@ -80,6 +83,9 @@
       <Filter>Network</Filter>
     </ClInclude>
     <ClInclude Include="PacketDefiine.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="EchoServer.h">
       <Filter>Network</Filter>
     </ClInclude>
   </ItemGroup>

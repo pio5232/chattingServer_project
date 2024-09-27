@@ -43,7 +43,7 @@ IN_ADDR C_Network::NetAddress::IpToAddr(const WCHAR* ip)
 		  NetworkBase
 	-----------------------*/
 
-C_Network::NetworkBase::NetworkBase(NetAddress netAddr, uint maxSessionCnt) : _netAddr(netAddr), _iocpHandle(nullptr)
+C_Network::NetworkBase::NetworkBase(const NetAddress& netAddr, uint maxSessionCnt) : _netAddr(netAddr), _iocpHandle(nullptr)
 {
 	InitializeSRWLock(&_lock);
 	WSAData wsa;
@@ -145,13 +145,31 @@ void C_Network::NetworkBase::Dispatch(C_Network::IocpEvent* iocpEvent, DWORD tra
 	SharedSession sessionPtr = iocpEvent->_owner;
 
 	// 상호 참조 ( 이 경우는 순환 참조가 발생할 수 있어 NetworkBase에서 Session을 가지는 형태로 사용한다. )
-	switch (iocpEvent->GetType())
+	switch (iocpEvent->_type)
 	{
-	case IocpEventType::Accept: AddSession(); sessionPtr->ProcessAccept(); break;
-	case IocpEventType::Connect:AddSession(); sessionPtr->ProcessConnect(); break;
-	case IocpEventType::Recv:sessionPtr->ProcessRecv(transferredBytes); break;
-	case IocpEventType::Send:sessionPtr->ProcessSend(transferredBytes); break;
-	case IocpEventType::Disconnect: sessionPtr->ProcessDisconnect(); DeleteSession(); break;
+	case IocpEventType::Accept:
+		AddSession();
+		sessionPtr->ProcessAccept();
+		break;
+
+	case IocpEventType::Connect:
+		AddSession();
+		sessionPtr->ProcessConnect();
+		//OnConnected(sessionPtr->GetNetAddr().GetSockAddr(), sessionPtr->GetId());
+		break;
+
+	case IocpEventType::Recv:
+		sessionPtr->ProcessRecv(transferredBytes);
+		break;
+
+	case IocpEventType::Send:
+		sessionPtr->ProcessSend(transferredBytes);
+		break;
+
+	case IocpEventType::Disconnect: 
+		//OnDisconnected(sessionPtr->GetId());
+		sessionPtr->ProcessDisconnect(); 
+		DeleteSession(); break;
 	default:break;
 	}
 }
@@ -175,7 +193,6 @@ void C_Network::NetworkBase::WorkerThread()
 		if(!iocpEvent)
 		{
 			TODO_LOG_ERROR;
-			printf("GQCS return is Null\n");
 			PostQueuedCompletionStatus(_iocpHandle, 0, 0, nullptr);
 			break;
 		}
@@ -185,14 +202,33 @@ void C_Network::NetworkBase::WorkerThread()
 	printf("Worker End\n");
 }
 
+bool C_Network::NetworkBase::OnConnectionRequest(const SOCKADDR_IN& clientInfo)
+{
+	TODO_UPDATE_EX_LIST;
+	return true;
+}
 
+void C_Network::NetworkBase::OnConnected(const SOCKADDR_IN& clientInfo, ULONGLONG sessionId)
+{
+	TODO_UPDATE_EX_LIST;
+}
+
+void C_Network::NetworkBase::OnDisconnected(ULONGLONG sessionId)
+{
+	TODO_UPDATE_EX_LIST;
+}
+
+void C_Network::NetworkBase::OnError(int errCode, WCHAR* cause)
+{
+	TODO_UPDATE_EX_LIST;
+}
 
 
 
 	/*-----------------------
 			NetServer
 	-----------------------*/
-C_Network::NetServer::NetServer(NetAddress netAddr, uint maxSessionCnt)
+C_Network::NetServer::NetServer(const NetAddress& netAddr, uint maxSessionCnt)
 	: NetworkBase(netAddr, maxSessionCnt), _listenSock(INVALID_SOCKET)
 {
 }
@@ -242,27 +278,6 @@ void C_Network::NetServer::End()
 	NetworkBase::End();
 }
 
-bool C_Network::NetServer::OnConnectionRequest(SOCKADDR_IN* pClientInfo)
-{
-	TODO_UPDATE_EX_LIST;
-	return true;
-}
-
-void C_Network::NetServer::OnClientJoin(SOCKADDR_IN st_clientInfo, ULONG_PTR dw_session_id)
-{
-	TODO_UPDATE_EX_LIST;
-}
-
-void C_Network::NetServer::OnClientLeave(ULONG_PTR dw_session_id)
-{
-	TODO_UPDATE_EX_LIST;
-}
-
-void C_Network::NetServer::OnError(int i_error_code, WCHAR* sz_display)
-{
-	TODO_UPDATE_EX_LIST;
-}
-
 void C_Network::NetServer::AcceptThread()
 {
 	while (1)
@@ -277,13 +292,15 @@ void C_Network::NetServer::AcceptThread()
 			printf("Accept thread return\n");
 			break;
   		}
-		if (!OnConnectionRequest(&clientInfo))
+		if (!OnConnectionRequest(clientInfo))
 		{
 			TODO_DEFINITION // 거절한 이유와 해당 ip는 무엇인지 로그 기록
 		}
 		SharedSession newSession = CreateSession(clientSock, &clientInfo);
 
 		newSession->ProcessAccept();
+
+		OnConnected(clientInfo, newSession->GetId());
 	}
 }
 

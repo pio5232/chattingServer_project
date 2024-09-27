@@ -25,3 +25,7 @@ connect / discconect / accept 모두 비동기로 동작하도록 해보자. 구
 
 
 connet / accept 
+
+--------------------------------------------------
+
+Send 어떻게 할 것인지에 대해서 생각해보고, EchoServer의 On~ 로직에 대한 구현 생각하기, Packet 핸들링 만들기.

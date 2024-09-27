@@ -4,7 +4,9 @@ namespace C_Network
 {
 	enum : uint
 	{
-		MAX_RECV_BUF_SIZE = 3000,
+		RECV_BUF_CLEAR_SIZE = 0x1000,
+		MAX_RECV_BUF_SIZE = 0x10000,
+
 		MAX_SEND_BUF_SIZE = 4000,
 	};
 
@@ -19,9 +21,9 @@ namespace C_Network
 		NetAddress(std::wstring ip, uint16 port);
 		NetAddress(const NetAddress& other);
 
-		inline const SOCKADDR_IN& GetSockAddr() const { return _sockAddr; }
+		const SOCKADDR_IN& GetSockAddr() const { return _sockAddr; }
 		std::wstring	GetIpAddress();
-		inline const uint16 GetPort() const { return ntohs(_sockAddr.sin_port); }
+		const uint16 GetPort() const { return ntohs(_sockAddr.sin_port); }
 
 		static IN_ADDR IpToAddr(const WCHAR* ip);
 	private:
@@ -42,11 +44,13 @@ namespace C_Network
 		bool MoveWritePos(uint len);
 
 		uint UseSize() const { return _writePos - _readPos; }
-		uint FreeSize() const { return MAX_RECV_BUF_SIZE - _writePos - 1; }
+		uint FreeSize() const { return MAX_RECV_BUF_SIZE - _writePos; }
 		char* GetReadPtr() { return &_buffer[_readPos]; }
 		char* GetWritePtr() { return &_buffer[_writePos]; }
 	private:
-		char _buffer[MAX_RECV_BUF_SIZE];
+		std::vector<char> _buffer; // error detecting
+
+		//char _buffer[MAX_RECV_BUF_SIZE];
 		uint _readPos;
 		uint _writePos;
 	};
@@ -59,7 +63,7 @@ namespace C_Network
 		~SendBuffer() { delete _buffer; printf("SendBuffer ¼Ò¸êÀÚ\n"); }
 
 		char* GetBuffer() { return _buffer; }
-		int GetSize() { return _size; }
+		int GetSize() const { return _size; }
 
 	private:
 		char* _buffer;

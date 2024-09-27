@@ -35,24 +35,6 @@ C_Network::Session::~Session()
 	}
 }
 
-//void C_Network::Session::Dispatch(IocpEvent* iocpEvent, int transferredBytes)
-//{
-//	switch (iocpEvent->GetType())
-//	{
-//	case IocpEventType::Recv:
-//		ProcessRecv(transferredBytes); break;
-//	case IocpEventType::Send:
-//		ProcessSend(transferredBytes); break;
-//	case IocpEventType::Accept:
-//		ProcessAccept(); break;
-//	case IocpEventType::Connect:
-//		ProcessConnect(); break;
-//	case IocpEventType::Disconnect:
-//		ProcessDisconnect(); break;
-//	default:break;
-//	}
-//}
-
 void C_Network::Session::Send(SharedSendBuffer sendBuf)
 {
 	{
@@ -110,13 +92,8 @@ bool C_Network::Session::ProcessRecv(DWORD transferredBytes)
 bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 {
 	_sendEvent._owner = nullptr;
+	_sendEvent._pendingBuffs.clear();
 
-	OnSend();
-
-	// lock 걸고 2가지 중 하나 실행하도록 만들기 / _sendEvent는 sendBuffer를 물고 있어야함.
-	// lock
-	// if (_sendQ.size() > 0 ) -> PostSend
-	
 	bool isEmpty;
 
 	{
@@ -125,9 +102,9 @@ bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 	}
 
 	if (isEmpty)
-		PostSend();
-	else
 		InterlockedExchange8(&_sendFlag, 0);
+	else
+		PostSend();
 	
 	return true;
 }
@@ -137,9 +114,6 @@ bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 bool C_Network::Session::ProcessConnect()
 {
 	_connectEvent._owner = nullptr;
-
-	// Contents Overriding
-	OnConnected();
 
 	PostRecv();
 
@@ -151,8 +125,6 @@ bool C_Network::Session::ProcessAccept()
 	TODO_DEFINITION;
 	TODO_UPDATE_EX_LIST;
 
-	OnConnected();
-
 	PostRecv();
 
 	return false;
@@ -161,8 +133,6 @@ bool C_Network::Session::ProcessAccept()
 bool C_Network::Session::ProcessDisconnect()
 {
 	_disconnEvent._owner = nullptr;
-
-	OnDisconnected();
 
 	return false;
 }
@@ -283,9 +253,9 @@ uint C_Network::Session::OnRecv()
 	return processingLen;
 }
 
-// Client Overriding
 void C_Network::Session::OnRecvPacket(char* buffer, uint len) {}
-void C_Network::Session::OnConnected() {}
-void C_Network::Session::OnDisconnected() {}
 
-void C_Network::Session::OnSend() {}
+//void C_Network::Session::OnConnected() {}
+//void C_Network::Session::OnDisconnected() {}
+//
+//void C_Network::Session::OnSend() {}

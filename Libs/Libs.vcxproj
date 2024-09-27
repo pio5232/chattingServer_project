@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="CCrashDump.h" />
     <ClInclude Include="chattingServer.h" />
+    <ClInclude Include="EchoServer.h" />
     <ClInclude Include="NetworkBase.h" />
     <ClInclude Include="CLog.h" />
     <ClInclude Include="Define.h" />
@@ -41,6 +42,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="chattingServer.cpp" />
+    <ClCompile Include="EchoServer.cpp" />
     <ClCompile Include="NetworkBase.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LibsPch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LibsPch.h</PrecompiledHeaderFile>
