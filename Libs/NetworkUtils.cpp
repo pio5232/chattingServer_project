@@ -3,6 +3,8 @@
 
 C_Network::RecvBuffer::RecvBuffer() : _readPos(0), _writePos(0), _buffer{} {}
 
+thread_local C_Network::SharedSendBufChunk sendBufChunks;
+
 void C_Network::RecvBuffer::Reset()
 {
 	uint useSize = UseSize();

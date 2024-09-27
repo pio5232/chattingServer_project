@@ -1,5 +1,6 @@
 #pragma once
 
+#include <queue>
 #include "PacketDefiine.h"
 namespace C_Network
 {
@@ -8,11 +9,12 @@ namespace C_Network
 	----------------------*/
 	enum class IocpEventType : unsigned char
 	{
-		Recv,
-		Send,
 		Accept,
 		Connect,
+		Recv,
+		Send,
 		Disconnect,
+		EventMax,
 		// PreRecv, 0 byte Recv
 	};
 
@@ -20,10 +22,10 @@ namespace C_Network
 	{
 	public:
 		IocpEvent(IocpEventType type);
-		void Init();
+		void Reset();
 		inline const IocpEventType GetType() const { return _type; }
 
-		SharedIocpBase _owner;
+		SharedSession _owner;
 
 	private:
 		const IocpEventType _type;
@@ -55,28 +57,16 @@ namespace C_Network
 	};
 
 
-	/*----------------------
-			IocpObjBase
-	----------------------*/
-	class IocpObjBase : public std::enable_shared_from_this<IocpObjBase>
-	{
-	public:
-		//virtual HANDLE GetHandle() abstract = 0;
-		virtual void Dispatch(class IocpEvent* iocpEvent, int numOfBytes = 0) abstract = 0;
-	};
-
-
 	/*------------------------------
 				Session
 	------------------------------*/
-	class Session : public IocpObjBase
+	class Session :public std::enable_shared_from_this<Session>
 	{
 	public:
-		Session(SOCKET sock);
+		Session(SOCKET sock, SOCKADDR_IN* pSockAddr);
 		~Session();
 
-		void Dispatch(class IocpEvent* iocpEvent, int numOfBytes = 0);
-
+		void Send(SharedSendBuffer sendBuf);
 		void Disconnect();
 
 		bool ProcessRecv(DWORD transferredBytes);
@@ -85,29 +75,37 @@ namespace C_Network
 		bool ProcessAccept();
 		bool ProcessDisconnect();
 
+		virtual void OnRecvPacket(char* buffer, uint len);
+		virtual void OnConnected();
+		virtual void OnDisconnected();
+		virtual void OnSend();
+
+		ULONGLONG GetId () const { return _sessionId; }
+
+	private:
+		uint OnRecv();
 
 		// Regist.
 		void PostSend();
 		void PostRecv();
 		void PostConnect();
 		void PostDisconnect();
+		void PostAccept();
 
-		uint OnRecv();
-		
-		virtual void OnRecvPacket(char* buffer, uint len);
-		virtual void OnConnected();
-		virtual void OnDisconnected();
-
-	private:
+		SRWLOCK _sendBufferLock;
 		SOCKET _socket;
 		NetAddress _netAddr;
 		ULONGLONG _sessionId;
 
 		RecvBuffer _recvBuffer;
+		std::queue<SharedSendBuffer> _sendBufferQ;
 
 		RecvEvent _recvEvent;
 		SendEvent _sendEvent;
+		ConnectEvent _connectEvent;
+		DisconnectEvent _disconnEvent;
 
 		volatile char _isConnected;
+		volatile char _sendFlag; // Use - 1, unUse - 0
 	};
 }

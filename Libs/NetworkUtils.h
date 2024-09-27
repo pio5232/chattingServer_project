@@ -50,4 +50,31 @@ namespace C_Network
 		uint _readPos;
 		uint _writePos;
 	};
+
+
+	class SendBuffer
+	{
+	public:
+		SendBuffer(int size) : _size(size) { _buffer = static_cast<char*>(malloc(size)); printf("SendBuffer 持失切\n"); }
+		~SendBuffer() { delete _buffer; printf("SendBuffer 社瑚切\n"); }
+
+		char* GetBuffer() { return _buffer; }
+		int GetSize() { return _size; }
+
+	private:
+		char* _buffer;
+		int _size;
+
+	};
+
+	class SendBufferChunk
+	{
+
+	};
+
+	class SendManager
+	{
+	public:
+
+	};
 }

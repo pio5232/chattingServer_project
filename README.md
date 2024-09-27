@@ -22,3 +22,6 @@ connect / discconect / accept 모두 비동기로 동작하도록 해보자. 구
 또한 Session <-> Server의 순환 참조를 끊을 수 있는 방법을 생각해보자..
 
 지금 모든 데이터는 Pool로 사용하고 있는데, 처음 만들 때는 new로 만들었다가 new로 어느정도 실행이 잘 되면, Pool로 바꾸는 과정을 테스트해보자.
+
+
+connet / accept 

@@ -20,8 +20,6 @@
 #include "Utils.h"
 #include "Session.h"
 
-
-
 inline void CCrash(const WCHAR* resaon)
 {
 	wprintf(L"%s\n", resaon);
