@@ -20,7 +20,7 @@ C_Network::NetAddress::NetAddress(std::wstring ip, uint16 port)
 
 C_Network::NetAddress::NetAddress(const NetAddress& other) : _sockAddr(other._sockAddr) {}
 
-std::wstring C_Network::NetAddress::GetIpAddress()
+const std::wstring C_Network::NetAddress::GetIpAddress() const
 {
 	WCHAR ipWstr[100];
 
@@ -43,7 +43,7 @@ IN_ADDR C_Network::NetAddress::IpToAddr(const WCHAR* ip)
 		  NetworkBase
 	-----------------------*/
 
-C_Network::NetworkBase::NetworkBase(const NetAddress& netAddr, uint maxSessionCnt) : _netAddr(netAddr), _iocpHandle(nullptr)
+C_Network::NetworkBase::NetworkBase(const NetAddress& netAddr, uint maxSessionCnt) : _netAddr(netAddr),_maxSessionCnt(maxSessionCnt), _iocpHandle(nullptr)
 {
 	InitializeSRWLock(&_lock);
 	WSAData wsa;
@@ -109,8 +109,8 @@ void C_Network::NetworkBase::End()
 C_Network::SharedSession C_Network::NetworkBase::CreateSession(SOCKET sock, SOCKADDR_IN* pSockAddr)
 {
 	TODO_UPDATE_EX_LIST;
-
-	SharedSession newSession = std::make_shared<Session>(sock, pSockAddr);
+	
+	SharedSession newSession = std::make_shared<Session>(sock, pSockAddr, this);
 	bool bRet1;
 	{
 		SRWLockGuard lock(&_lock);
@@ -142,34 +142,32 @@ void C_Network::NetworkBase::DeleteSession()
 
 void C_Network::NetworkBase::Dispatch(C_Network::IocpEvent* iocpEvent, DWORD transferredBytes)
 {
-	SharedSession sessionPtr = iocpEvent->_owner;
+	SharedSession session = iocpEvent->_owner;
 
 	// 상호 참조 ( 이 경우는 순환 참조가 발생할 수 있어 NetworkBase에서 Session을 가지는 형태로 사용한다. )
 	switch (iocpEvent->_type)
 	{
 	case IocpEventType::Accept:
-		AddSession();
-		sessionPtr->ProcessAccept();
+		ProcessAccept(session);
 		break;
 
 	case IocpEventType::Connect:
-		AddSession();
-		sessionPtr->ProcessConnect();
+		ProcessConnect(session);
 		//OnConnected(sessionPtr->GetNetAddr().GetSockAddr(), sessionPtr->GetId());
 		break;
 
 	case IocpEventType::Recv:
-		sessionPtr->ProcessRecv(transferredBytes);
+		ProcessRecv(session, transferredBytes);
 		break;
 
 	case IocpEventType::Send:
-		sessionPtr->ProcessSend(transferredBytes);
+		ProcessSend(session, transferredBytes);
 		break;
 
 	case IocpEventType::Disconnect: 
+		ProcessDisconnect(session, transferredBytes);
 		//OnDisconnected(sessionPtr->GetId());
-		sessionPtr->ProcessDisconnect(); 
-		DeleteSession(); break;
+		break;
 	default:break;
 	}
 }
@@ -180,6 +178,7 @@ void C_Network::NetworkBase::WorkerThread()
 	DWORD transferredBytes;
 
 	Session* pSession;
+
 	while (1)
 	{
 		iocpEvent = nullptr;
@@ -223,6 +222,99 @@ void C_Network::NetworkBase::OnError(int errCode, WCHAR* cause)
 	TODO_UPDATE_EX_LIST;
 }
 
+void C_Network::NetworkBase::OnRecv(C_Utility::CSerializationBuffer& buffer, ULONGLONG sessionId)
+{
+}
+
+void C_Network::NetworkBase::ProcessAccept(SharedSession& sessionRef, DWORD transferredBytes)
+{
+	AddSession();
+	sessionRef->ProcessAccept();
+}
+
+void C_Network::NetworkBase::ProcessConnect(SharedSession& sessionRef, DWORD transferredBytes)
+{
+	AddSession();
+	sessionRef->ProcessConnect();
+}
+
+bool C_Network::NetworkBase::ProcessRecv(SharedSession& sessionRef, DWORD transferredBytes)
+{
+	sessionRef->_recvEvent._owner = nullptr;
+
+	if (transferredBytes == 0)
+	{
+		sessionRef->Disconnect();
+		TODO_LOG_ERROR_WSA("Recv");
+		return false;
+	}
+	
+	if (!sessionRef->_recvBuffer.MoveRearRetBool(transferredBytes))
+	{
+		sessionRef->Disconnect();
+		TODO_LOG_ERROR;
+		printf("Buffer Overflow\n");
+		return false;
+	}
+
+	uint dataSize = sessionRef->_recvBuffer.GetUseSize();
+
+	uint processingLen = 0;
+
+	C_Utility::CSerializationBuffer tempBuffer(1000);
+
+	while (1)
+	{
+		tempBuffer.Clear();
+
+		int bufferSize = sessionRef->_recvBuffer.GetUseSize();
+
+		// packetheader보다 작은 상태
+		if (bufferSize < sizeof(PacketHeader))
+			break;
+
+		PacketHeader header;
+
+		sessionRef->_recvBuffer.PeekRetBool(reinterpret_cast<char*>(&header), sizeof(PacketHeader));
+
+		if (bufferSize < header.size)
+			break;
+		
+		sessionRef->_recvBuffer.MoveFront(sizeof(header));
+
+		if (!sessionRef->_recvBuffer.DequeueRetBool(tempBuffer.GetRearPtr(), header.size))
+		{
+			TODO_LOG_ERROR; printf("OnRecv Dequeue Error\n");
+			TODO_UPDATE_EX_LIST; // 이 경우에 session Disconnect?
+			break;
+		}
+		
+		tempBuffer.MoveRearPos(header.size);
+		OnRecv(tempBuffer, sessionRef->GetId());
+	}
+
+	sessionRef->PostRecv();
+
+	return true;
+}
+
+bool C_Network::NetworkBase::ProcessSend(SharedSession& sessionRef, DWORD transferredBytes)
+{
+	return sessionRef->ProcessSend(transferredBytes);
+}
+
+bool C_Network::NetworkBase::ProcessDisconnect(SharedSession& sessionRef, DWORD transferredBytes)
+{
+	bool bRet = sessionRef->ProcessDisconnect();
+	
+	if (bRet)
+		// or !bRet에 대한 로직 생성
+		TODO_UPDATE_EX_LIST;
+	DeleteSession();
+
+	return bRet;
+}
+
 
 
 	/*-----------------------
@@ -244,7 +336,7 @@ void C_Network::NetServer::Begin()
 	_listenSock = socket(AF_INET, SOCK_STREAM, 0);
 	if (_listenSock == INVALID_SOCKET)
 	{
-		TODO_LOG_ERROR_WSA;
+		TODO_LOG_ERROR_WSA("Create Sock");
 		CCrash(L"Listen socket is Invalid");
 	}
 
@@ -252,14 +344,14 @@ void C_Network::NetServer::Begin()
 
 	if (bindRet == SOCKET_ERROR)
 	{
-		TODO_LOG_ERROR_WSA;
+		TODO_LOG_ERROR_WSA("Bind");
 		CCrash(L"Bind Error\n");
 	}
 
 	DWORD listenRet = ::listen(_listenSock, SOMAXCONN);
 	if (listenRet == SOCKET_ERROR)
 	{
-		TODO_LOG_ERROR_WSA;
+		TODO_LOG_ERROR_WSA("Listen");
 		CCrash(L"listen Error\n");
 	}
 
@@ -296,8 +388,11 @@ void C_Network::NetServer::AcceptThread()
 		{
 			TODO_DEFINITION // 거절한 이유와 해당 ip는 무엇인지 로그 기록
 		}
-		SharedSession newSession = CreateSession(clientSock, &clientInfo);
 
+		SharedSession newSession = CreateSession(clientSock, &clientInfo);
+		
+		printf("client join\n");
+		
 		newSession->ProcessAccept();
 
 		OnConnected(clientInfo, newSession->GetId());

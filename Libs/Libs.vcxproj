@@ -21,6 +21,8 @@
   <ItemGroup>
     <ClInclude Include="CCrashDump.h" />
     <ClInclude Include="chattingServer.h" />
+    <ClInclude Include="CRingBuffer.h" />
+    <ClInclude Include="CSerializationBuffer.h" />
     <ClInclude Include="EchoServer.h" />
     <ClInclude Include="NetworkBase.h" />
     <ClInclude Include="CLog.h" />
@@ -30,6 +32,7 @@
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="NetworkUtils.h" />
     <ClInclude Include="PacketDefiine.h" />
+    <ClInclude Include="PacketHandler.h" />
     <ClInclude Include="Session.h" />
     <ClInclude Include="TlsProfiler.h" />
     <ClInclude Include="Utils.h" />
@@ -42,6 +45,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="chattingServer.cpp" />
+    <ClCompile Include="CRingBuffer.cpp" />
+    <ClCompile Include="CSerializationBuffer.cpp" />
     <ClCompile Include="EchoServer.cpp" />
     <ClCompile Include="NetworkBase.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LibsPch.h</PrecompiledHeaderFile>
@@ -83,6 +88,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">LibsPch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">LibsPch.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="PacketHandler.cpp" />
     <ClCompile Include="Session.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LibsPch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LibsPch.h</PrecompiledHeaderFile>

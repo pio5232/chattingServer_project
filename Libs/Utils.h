@@ -1,5 +1,7 @@
 #pragma once
-
+#include "CRingBuffer.h"
+#include "CSerializationBuffer.h"
+#include "CCrashDump.h"
 
 /*-------RAII--------
 	  LockGuard

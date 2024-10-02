@@ -46,6 +46,13 @@
     <ClCompile Include="EchoServer.cpp">
       <Filter>Network</Filter>
     </ClCompile>
+    <ClCompile Include="PacketHandler.cpp" />
+    <ClCompile Include="CRingBuffer.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="CSerializationBuffer.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LibsPch.h">
@@ -87,6 +94,13 @@
     </ClInclude>
     <ClInclude Include="EchoServer.h">
       <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketHandler.h" />
+    <ClInclude Include="CRingBuffer.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="CSerializationBuffer.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

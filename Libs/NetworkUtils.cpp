@@ -19,6 +19,7 @@ void C_Network::RecvBuffer::Reset()
 	uint freeSize = FreeSize();
 	if (freeSize < RECV_BUF_CLEAR_SIZE)
 	{
+		printf("RecvBuffer Memcpy 비용 발생!! 버퍼 크기가 작아요.\n");
 		memcpy(&_buffer[0], &_buffer[_readPos], useSize);
 		_readPos = 0;
 		_writePos = useSize;

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <queue>
+#include <functional>
 #include "PacketDefiine.h"
+
 namespace C_Network
 {
 	/*----------------------
@@ -17,7 +19,7 @@ namespace C_Network
 		EventMax,
 		// PreRecv, 0 byte Recv
 	};
-
+	
 	struct IocpEvent : private OVERLAPPED
 	{
 	public:
@@ -40,7 +42,7 @@ namespace C_Network
 	struct SendEvent : public IocpEvent
 	{
 	public:
-		SendEvent() : IocpEvent(IocpEventType::Send) { _pendingBuffs.reserve(5); }
+		SendEvent() : IocpEvent(IocpEventType::Send) { _pendingBuffs.reserve(10); }
 		std::vector<SharedSendBuffer> _pendingBuffs;
 	};
 
@@ -58,12 +60,14 @@ namespace C_Network
 
 
 	/*------------------------------
-				Session
+				Session (only Use Server)
 	------------------------------*/
-	class Session :public std::enable_shared_from_this<Session>
+	struct Session : std::enable_shared_from_this<Session>
 	{
 	public:
-		Session(SOCKET sock, SOCKADDR_IN* pSockAddr);
+		//using OnRecvFunc = std::function<void(char*, uint)>;
+
+		Session(SOCKET sock, SOCKADDR_IN* pSockAddr, class NetworkBase* netPtr);
 		~Session();
 
 		void Send(SharedSendBuffer sendBuf);
@@ -75,7 +79,6 @@ namespace C_Network
 		bool ProcessAccept();
 		bool ProcessDisconnect();
 
-		virtual void OnRecvPacket(char* buffer, uint len);
 		//virtual void OnConnected();
 		//virtual void OnDisconnected();
 		//virtual void OnSend();
@@ -83,30 +86,29 @@ namespace C_Network
 		const NetAddress& GetNetAddr() const { return _netAddr; }
 		ULONGLONG GetId () const { return _sessionId; }
 
-	private:
-		uint OnRecv();
-
 		// Regist.
 		void PostSend();
 		void PostRecv();
 		void PostConnect();
 		void PostDisconnect();
 		void PostAccept();
+	private:
 
 		SRWLOCK _sendBufferLock;
 		SOCKET _socket;
 		NetAddress _netAddr;
 		ULONGLONG _sessionId;
 
-		RecvBuffer _recvBuffer;
 		std::queue<SharedSendBuffer> _sendBufferQ;
 
+		volatile char _isConnected;
+		volatile char _sendFlag; // Use - 1, unUse - 0
+	public:
+		C_Utility::CRingBuffer _recvBuffer;
 		RecvEvent _recvEvent;
 		SendEvent _sendEvent;
 		ConnectEvent _connectEvent;
 		DisconnectEvent _disconnEvent;
 
-		volatile char _isConnected;
-		volatile char _sendFlag; // Use - 1, unUse - 0
 	};
 }

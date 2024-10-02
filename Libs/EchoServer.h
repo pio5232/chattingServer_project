@@ -17,6 +17,8 @@ namespace C_Network
 		virtual void OnConnected(const SOCKADDR_IN& clientInfo, ULONGLONG sessionId);
 		virtual void OnDisconnected(ULONGLONG sessionId);
 		virtual void OnError(int errCode, WCHAR* cause);
+		virtual void OnRecv(C_Utility::CSerializationBuffer& buffer, ULONGLONG sessionId);
+
 
 	};
 }

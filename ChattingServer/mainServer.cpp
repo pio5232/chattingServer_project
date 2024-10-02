@@ -4,10 +4,12 @@
 #include "CCrashDump.h"
 #include <thread>
 #include <chrono>
-#include "NetworkBase.h"
+#include "EchoServer.h"
 #include <conio.h>
+
 using namespace C_Network;
-NetServer server(NetAddress(std::wstring(L"127.0.0.1"),55555),3000);
+EchoServer server(NetAddress(std::wstring(L"127.0.0.1"),ServerPort),3000);
+
 int main()
 {
 	server.Begin();

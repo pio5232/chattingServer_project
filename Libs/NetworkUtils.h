@@ -22,7 +22,7 @@ namespace C_Network
 		NetAddress(const NetAddress& other);
 
 		const SOCKADDR_IN& GetSockAddr() const { return _sockAddr; }
-		std::wstring	GetIpAddress();
+		const std::wstring	GetIpAddress() const;
 		const uint16 GetPort() const { return ntohs(_sockAddr.sin_port); }
 
 		static IN_ADDR IpToAddr(const WCHAR* ip);
@@ -47,6 +47,7 @@ namespace C_Network
 		uint FreeSize() const { return MAX_RECV_BUF_SIZE - _writePos; }
 		char* GetReadPtr() { return &_buffer[_readPos]; }
 		char* GetWritePtr() { return &_buffer[_writePos]; }
+		char* GetBufferPtr() { return _buffer.data(); }
 	private:
 		std::vector<char> _buffer; // error detecting
 

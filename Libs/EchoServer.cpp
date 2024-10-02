@@ -22,3 +22,20 @@ void C_Network::EchoServer::OnError(int errCode, WCHAR* cause)
 {
 }
 
+void C_Network::EchoServer::OnRecv(C_Utility::CSerializationBuffer& buffer, ULONGLONG sessionId)
+{
+	SharedSession session = GetSession(sessionId);
+
+	EchoPacket packet;
+	
+	buffer >> packet.data;
+
+	SharedSendBuffer sendBuffer = std::make_shared<C_Utility::CSerializationBuffer>(5000);
+
+	C_Utility::CSerializationBuffer* serialBuffer = sendBuffer.get();
+	
+	*serialBuffer << (uint16)8 << packet.data;
+
+	session->Send(sendBuffer);
+}
+

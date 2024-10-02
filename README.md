@@ -29,3 +29,7 @@ connet / accept
 --------------------------------------------------
 
 Send 어떻게 할 것인지에 대해서 생각해보고, EchoServer의 On~ 로직에 대한 구현 생각하기, Packet 핸들링 만들기.
+
+
+ChatServer -> 내부의 PacketHandler로 전달, MakePacket<T>에서 타입에 따른 직렬화 처리 후 Send도 할 수 있도록하고,
+현재 EchoServer의 경우 그냥 Recv하는 방식으로도 만들어보고, PacketHandler를 통해 처리하는 것도 만들어보자.

@@ -1,6 +1,8 @@
 #include "LibsPch.h"
+#include "NetworkBase.h"
 #include "Session.h"
 
+using namespace C_Utility;
 C_Network::IocpEvent::IocpEvent(IocpEventType type) : _type(type) {}
 
 void C_Network::IocpEvent::Reset()
@@ -16,14 +18,16 @@ void C_Network::IocpEvent::Reset()
 			Session
 ------------------------------*/
 
-C_Network::Session::Session(SOCKET sock, SOCKADDR_IN* pSockAddr) : _socket(sock), _recvEvent(), _sendEvent(),_connectEvent(), _disconnEvent(),
+C_Network::Session::Session(SOCKET sock, SOCKADDR_IN* pSockAddr, NetworkBase* server) : _socket(sock), _recvEvent(), _sendEvent(),_connectEvent(), _disconnEvent(),
 _isConnected(1), _netAddr(*pSockAddr), _sendFlag(0), _recvBuffer()
 {
 	InitializeSRWLock(&_sendBufferLock);
 
+	TODO_UPDATE_EX_LIST;
+	// 비동기로 바뀔 경우 sessinonId의 변경을 atomic하게 해줘야한다.
 	static  ULONGLONG sessionId = 0;
 
-	_sessionId = ++sessionId;
+	_sessionId = InterlockedIncrement(&sessionId);;
 }
 
 C_Network::Session::~Session()
@@ -41,10 +45,33 @@ void C_Network::Session::Send(SharedSendBuffer sendBuf)
 		SRWLockGuard lockGuard(&_sendBufferLock);
 		_sendBufferQ.push(sendBuf);
 	}
-	char isSending = InterlockedExchange8(&_sendFlag, 1);
+	
+	if (InterlockedExchange8(&_sendFlag, 1) == 0)
+	{
+		int qSize;
+		{
+			SRWLockGuard lockGuard(&_sendBufferLock);
+			qSize = _sendBufferQ.size();
+		}
+		
+		// 이것도아님
+		if (qSize > 0)
+			PostSend();
+		else
+			InterlockedExchange8(&_sendFlag, 0);
+	}
 
-	if (isSending == 0)
-		PostSend();
+
+	//char isSending = InterlockedExchange8(&_sendFlag, 1);
+
+	//{
+	//	SRWLockGuard lockGuard(&_sendBufferLock);
+	//	_sendBufferQ.push(sendBuf);
+	//}
+	//if (isSending == 0)
+	//{
+	//	PostSend();
+	//}
 }
 
 void C_Network::Session::Disconnect()
@@ -52,48 +79,50 @@ void C_Network::Session::Disconnect()
 	char isConnected = InterlockedExchange8(&_isConnected, 0);
 	if (!isConnected)
 		return;
+
+	closesocket(_socket);
 }
 
-bool C_Network::Session::ProcessRecv(DWORD transferredBytes)
-{
-	_recvEvent._owner = nullptr;
-
-	if (transferredBytes == 0)
-	{
-		Disconnect();
-		TODO_LOG_ERROR_WSA;
-		return false;
-	}
-
-	if (!_recvBuffer.MoveWritePos(transferredBytes))
-	{
-		Disconnect();
-		TODO_LOG_ERROR;
-		printf("Buffer Overflow\n");
-		return false;
-	}
-
-	uint dataSize = _recvBuffer.UseSize();
-	
-	int procLen = OnRecv();
-
-	if (procLen < 0 || procLen > dataSize || !_recvBuffer.MoveReadPos(procLen))
-	{
-		Disconnect();
-		TODO_LOG_ERROR;
-		return false;
-	}
-	
-	PostRecv();
-
-	return true;
-}
+//bool C_Network::Session::ProcessRecv(DWORD transferredBytes)
+//{
+//	_recvEvent._owner = nullptr;
+//
+//	if (transferredBytes == 0)
+//	{
+//		Disconnect();
+//		TODO_LOG_ERROR_WSA;
+//		return false;
+//	}
+//
+//	if (!_recvBuffer.MoveRearRetBool(transferredBytes))
+//	{
+//		Disconnect();
+//		TODO_LOG_ERROR;
+//		printf("Buffer Overflow\n");
+//		return false;
+//	}
+//
+//	uint dataSize = _recvBuffer.GetUseSize();
+//	
+//	int procLen = OnRecv();
+//
+//	if (procLen < 0 || procLen > dataSize || !_recvBuffer.MoveFrontRetBool(procLen))
+//	{
+//		Disconnect();
+//		TODO_LOG_ERROR;
+//		return false;
+//	}
+//	
+//	PostRecv();
+//
+//	return true;
+//}
 
 bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 {
 	_sendEvent._owner = nullptr;
 	_sendEvent._pendingBuffs.clear();
-
+	
 	bool isEmpty;
 
 	{
@@ -105,7 +134,8 @@ bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 		InterlockedExchange8(&_sendFlag, 0);
 	else
 		PostSend();
-	
+
+
 	return true;
 }
 
@@ -151,7 +181,9 @@ void C_Network::Session::PostSend()
 	
 	{
 		SRWLockGuard lockGuard(&_sendBufferLock);
+
 		int sendBufferCount = _sendBufferQ.size();
+
 		wsabufs.reserve(sendBufferCount);
 
 		while (_sendBufferQ.size())
@@ -159,12 +191,19 @@ void C_Network::Session::PostSend()
 			SharedSendBuffer sendData = _sendBufferQ.front();
 
 			_sendBufferQ.pop();
-			WSABUF buf;
-			buf.buf = sendData->GetBuffer();
-			buf.len = sendData->GetSize();
 
-			wsabufs.push_back(buf);
+			_sendEvent._pendingBuffs.push_back(sendData);
 		}
+	}
+	
+	for (auto& sendData : _sendEvent._pendingBuffs)
+	{
+		WSABUF buf;
+
+		buf.buf = sendData->GetFrontPtr();
+		buf.len = sendData->GetDataSize();
+
+		wsabufs.push_back(buf);
 	}
 	
 	int sendRet = WSASend(_socket, wsabufs.data(), wsabufs.size(), nullptr, 0, reinterpret_cast<LPWSAOVERLAPPED>(&_sendEvent), nullptr);
@@ -175,7 +214,7 @@ void C_Network::Session::PostSend()
 		if (wsaErr != WSA_IO_PENDING)
 		{
 			_sendEvent._owner = nullptr;
-			TODO_LOG_ERROR_WSA;
+			printf("WSASend Error - [ errCode %d ]\n", wsaErr);
 			Disconnect();
 		}
 	}
@@ -187,13 +226,25 @@ void C_Network::Session::PostRecv()
 	_recvEvent.Reset();
 	_recvEvent._owner = shared_from_this();
 
-	WSABUF buf;
-	buf.buf = _recvBuffer.GetWritePtr();
-	buf.len = _recvBuffer.FreeSize();
+	WSABUF buf[2];
+
+	int directEnqueueSize = _recvBuffer.DirectEnqueueSize();
+	int remainderSize = _recvBuffer.GetFreeSize()  - directEnqueueSize;
+	int wsabufSize = 1;
+
+	buf[0].buf = _recvBuffer.GetFrontBufferPtr();
+	buf[0].len = directEnqueueSize;
+
+	if (remainderSize > 0)
+	{
+		++wsabufSize;
+		buf[1].buf = _recvBuffer.GetStartBufferPtr();
+		buf[1].len = remainderSize;
+	}
 
 	DWORD flag = 0;
  	
-	int recvRet = WSARecv(_socket, &buf, 1, nullptr, &flag, reinterpret_cast<LPWSAOVERLAPPED>(& _recvEvent), nullptr);
+	int recvRet = WSARecv(_socket, buf, wsabufSize, nullptr, &flag, reinterpret_cast<LPWSAOVERLAPPED>(& _recvEvent), nullptr);
 
 	if (recvRet == SOCKET_ERROR)
 	{
@@ -201,7 +252,7 @@ void C_Network::Session::PostRecv()
 
 		if (err != WSA_IO_PENDING)
 		{
-			TODO_LOG_ERROR;
+			printf("WSARecv Error - [ errCode %d ]\n", err);
 			_recvEvent._owner = nullptr;
 			Disconnect();
 		}
@@ -226,34 +277,60 @@ void C_Network::Session::PostDisconnect()
 }
 // -----------------------------------------------------------------------------------------------------------------------
 
-uint C_Network::Session::OnRecv()
-{
-	uint processingLen = 0;
-	
-	uint bufferSize = _recvBuffer.UseSize();
-	
-	while (1)
-	{
-		uint availableSize = bufferSize - processingLen;
-		if (availableSize < sizeof(PacketHeader))
-			break;
+//uint C_Network::Session::OnRecv()
+//{
+//	uint processingLen = 0;
+//	
+//	
+//	while (1)
+//	{
+//		int bufferSize = _recvBuffer.GetUseSize();
+//		
+//		// packetheader보다 작은 상태
+//		if (bufferSize < sizeof(PacketHeader))
+//			break;
+//
+//		PacketHeader header;
+//		
+//		if (!_recvBuffer.PeekRetBool(reinterpret_cast<char*>(&header), sizeof(PacketHeader)))
+//		{
+//			TODO_LOG_ERROR; printf("_recvBuffer peek Failed\n");
+//			break;
+//		}
+//
+//		// echoServer 클라이언트는 size 2 / data 8이 들어오므로 
+//		// 이 경우는 그냥 무시하도록 한다.
+//		// 원래대로라면 uint16 size 10 /ulonlong data 8 이라면 잘 된다.
+//
+//		if (bufferSize < header.size)
+//			break;
+//
+//		_netPtr->OnRecv();
+//
+//		
+//
+//
+//
+//
+//
+//
+//		uint availableSize = bufferSize - processingLen;
+//		if (availableSize < sizeof(PacketHeader))
+//			break;
+//
+//		uint16 packetLen = reinterpret_cast<PacketHeader*>(readPtr)->size;
+//
+//		if (packetLen < availableSize)
+//			break;
+//
+//		_netPtr->OnRecv(readPtr, packetLen);
+//
+//		processingLen += packetLen;
+//	}
+//	
+//	return processingLen;
+//}
 
-		char* readPtr = _recvBuffer.GetReadPtr();
-
-		uint16 packetLen = reinterpret_cast<PacketHeader*>(readPtr)->size;
-
-		if (packetLen < availableSize)
-			break;
-
-		OnRecvPacket(readPtr, packetLen);
-
-		processingLen += packetLen;
-	}
-	
-	return processingLen;
-}
-
-void C_Network::Session::OnRecvPacket(char* buffer, uint len) {}
 
 //void C_Network::Session::OnConnected() {}
 //void C_Network::Session::OnDisconnected() {}
