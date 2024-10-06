@@ -46,22 +46,23 @@ void C_Network::Session::Send(SharedSendBuffer sendBuf)
 		_sendBufferQ.push(sendBuf);
 	}
 	
-	if (InterlockedExchange8(&_sendFlag, 1) == 0)
-	{
-		int qSize;
-		{
-			SRWLockGuard lockGuard(&_sendBufferLock);
-			qSize = _sendBufferQ.size();
-		}
-		
-		// ÀÌ°Íµµ¾Æ´Ô
-		if (qSize > 0)
-			PostSend();
-		else
-			InterlockedExchange8(&_sendFlag, 0);
-	}
+	PostSend();
+	//if (InterlockedExchange8(&_sendFlag, 1) == 0)
+	//{
+	//	int qSize;
+	//	{
+	//		SRWLockGuard lockGuard(&_sendBufferLock);
+	//		qSize = _sendBufferQ.size();
+	//	}
+	//	
+	//	// ÀÌ°Íµµ¾Æ´Ô
+	//	if (qSize > 0)
+	//		PostSend();
+	//	else
+	//		InterlockedExchange8(&_sendFlag, 0);
+	//}
 
-
+	// --------------------------------------------------------
 	//char isSending = InterlockedExchange8(&_sendFlag, 1);
 
 	//{
@@ -123,17 +124,20 @@ bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 	_sendEvent._owner = nullptr;
 	_sendEvent._pendingBuffs.clear();
 	
-	bool isEmpty;
+	InterlockedExchange8(&_sendFlag, 0);
 
-	{
-		SRWLockGuard lockGuard(&_sendBufferLock);
-		isEmpty = _sendBufferQ.empty();
-	}
+	PostSend();
+	//bool isEmpty;
 
-	if (isEmpty)
-		InterlockedExchange8(&_sendFlag, 0);
-	else
-		PostSend();
+	//{
+	//	SRWLockGuard lockGuard(&_sendBufferLock);
+	//	isEmpty = _sendBufferQ.empty();
+	//}
+
+	//if (isEmpty)
+	//	InterlockedExchange8(&_sendFlag, 0);
+	//else
+	//	PostSend();
 
 
 	return true;
@@ -172,6 +176,9 @@ bool C_Network::Session::ProcessDisconnect()
 void C_Network::Session::PostSend()
 {
 	if (!_isConnected)
+		return;
+
+	if (_sendBufferQ.empty() || InterlockedExchange8(&_sendFlag, 1) == 1)
 		return;
 
 	_sendEvent.Reset();
