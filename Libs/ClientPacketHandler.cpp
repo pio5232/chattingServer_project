@@ -16,17 +16,15 @@ void C_Network::ClientEchoPacketHandler::Init(C_Network::NetworkBase* owner)
 }
 
 
-bool C_Network::ClientEchoPacketHandler::ProcessPacket(ULONGLONG sessionId, uint16 packetType, C_Utility::CSerializationBuffer& buffer)
+C_Network::NetworkErrorCode C_Network::ClientEchoPacketHandler::ProcessPacket(ULONGLONG sessionId, uint16 packetType, C_Utility::CSerializationBuffer& buffer)
 {
 	if (packetFuncs.find(packetType) == packetFuncs.end())
-		return false;
+		return C_Network::NetworkErrorCode::CANNOT_FIND_PACKET_FUNC;
 
-	bool bRet = packetFuncs[packetType](sessionId, buffer);
-
-	return bRet;
+	return packetFuncs[packetType](sessionId, buffer);
 }
 
-bool C_Network::ClientEchoPacketHandler::ProcessEchoFunc(ULONGLONG sessionId, C_Utility::CSerializationBuffer& buffer)
+C_Network::NetworkErrorCode C_Network::ClientEchoPacketHandler::ProcessEchoFunc(ULONGLONG sessionId, C_Utility::CSerializationBuffer& buffer)
 {
 	EchoPacket packet;
 
@@ -36,5 +34,5 @@ bool C_Network::ClientEchoPacketHandler::ProcessEchoFunc(ULONGLONG sessionId, C_
 	
 	_owner->Send(sessionId, sendBuffer);
 
-	return true;
+	return C_Network::NetworkErrorCode::NONE;
 }

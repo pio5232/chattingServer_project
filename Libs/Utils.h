@@ -2,6 +2,7 @@
 #include "CRingBuffer.h"
 #include "CSerializationBuffer.h"
 #include "CCrashDump.h"
+#include "CLog.h"
 
 /*-------RAII--------
 	  LockGuard

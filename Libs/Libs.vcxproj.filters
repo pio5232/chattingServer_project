@@ -55,6 +55,7 @@
     </ClCompile>
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="RoomManager.cpp" />
+    <ClCompile Include="User.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LibsPch.h">
@@ -106,5 +107,9 @@
     </ClInclude>
     <ClInclude Include="Room.h" />
     <ClInclude Include="RoomManager.h" />
+    <ClInclude Include="NetworkErrorCode.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="User.h" />
   </ItemGroup>
 </Project>

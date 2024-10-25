@@ -16,7 +16,11 @@ int main()
 {
 	server.InitHandler();
 
-	server.Begin();
+	if (server.Begin() != C_Network::NetworkErrorCode::NONE)
+	{
+		printf("Begin : 에러 발생\n");
+		return 0;
+	}
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
 	while (1)
@@ -29,5 +33,9 @@ int main()
 		}
 	}
 
-	server.End();
+	if (server.End() != C_Network::NetworkErrorCode::NONE)
+	{
+		printf("End : 에러 발생\n");
+		return 0;
+	}
 }

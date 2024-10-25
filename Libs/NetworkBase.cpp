@@ -50,16 +50,9 @@ IN_ADDR C_Network::NetAddress::IpToAddr(const WCHAR* ip)
 C_Network::NetworkBase::NetworkBase(const NetAddress& netAddr, uint maxSessionCnt) : _netAddr(netAddr), _iocpHandle(nullptr)
 {
 	_sessionMgr = std::make_unique<SessionManager>(maxSessionCnt);
-	WSAData wsa;
-	
-	int iRet = WSAStartup(MAKEWORD(2, 2), &wsa);
+	_logger = std::make_unique<C_Utility::FileLogger>();
 
-	if (iRet)
-	{
-		TODO_LOG_ERROR;
-		CCrash(L"WSAStart Error");
-	}
-
+	_fileLogThread = std::thread([&]() {_logger->Save(); })
 	// Print Success and ConcurrentCnt
 	TODO_LOG_SUCCESS;
 }
@@ -69,8 +62,18 @@ C_Network::NetworkBase::~NetworkBase()
 	WSACleanup();
 }
 
-void C_Network::NetworkBase::Begin()
+C_Network::NetworkErrorCode C_Network::NetworkBase::Begin()
 {
+	WSAData wsa;
+
+	int iRet = WSAStartup(MAKEWORD(2, 2), &wsa);
+
+	if (iRet)
+	{
+		TODO_LOG_ERROR;
+		return C_Network::NetworkErrorCode::WSA_START_UP_ERROR;
+	}
+
 	SYSTEM_INFO sys;
 	GetSystemInfo(&sys);
 
@@ -86,7 +89,7 @@ void C_Network::NetworkBase::Begin()
 	if (_iocpHandle == NULL)
 	{
 		TODO_LOG_ERROR;
-		CCrash(L"Iocp Handle is Invalid");
+		return 	C_Network::NetworkErrorCode::CREATE_COMPLETION_PORT_FAILED;
 	}
 
 	_workerThreads.reserve(10);// (concurrentThreadCnt * 2);
@@ -95,9 +98,11 @@ void C_Network::NetworkBase::Begin()
 	{
 		_workerThreads.push_back(std::thread([this]() {this->WorkerThread(); }));
 	}
+
+	return C_Network::NetworkErrorCode::NONE;
 }
 
-void C_Network::NetworkBase::End()
+C_Network::NetworkErrorCode C_Network::NetworkBase::End()
 {
 	CloseHandle(_iocpHandle);
 
@@ -107,7 +112,13 @@ void C_Network::NetworkBase::End()
 			t.join();
 	}
 
+	_logger->EndLogging();
+
+	if (_fileLogThread.joinable())
+		_fileLogThread.join();
+
 	TODO_LOG_SUCCESS;
+	return C_Network::NetworkErrorCode::NONE;
 }
 
 C_Network::Session* C_Network::NetworkBase::CreateSession(SOCKET sock, SOCKADDR_IN* pSockAddr)
@@ -121,17 +132,6 @@ C_Network::Session* C_Network::NetworkBase::CreateSession(SOCKET sock, SOCKADDR_
 	return newSession;
 }
 
-//void C_Network::NetworkBase::AddSession()
-//{
-//	TODO_DEFINITION;
-//	TODO_UPDATE_EX_LIST;
-//}
-
-//void C_Network::NetworkBase::DeleteSession(C_Network::Session* sessionPtr)
-//{
-//	TODO_DEFINITION;
-//	TODO_UPDATE_EX_LIST;
-//}
 
 void C_Network::NetworkBase::Dispatch(C_Network::IocpEvent* iocpEvent, DWORD transferredBytes)
 {
@@ -260,21 +260,20 @@ void C_Network::NetworkBase::ProcessConnect(Session* sessionPtr, DWORD transferr
 	sessionPtr->ProcessConnect();
 }
 
-bool C_Network::NetworkBase::ProcessRecv(Session* sessionPtr, DWORD transferredBytes)
+C_Network::NetworkErrorCode C_Network::NetworkBase::ProcessRecv(Session* sessionPtr, DWORD transferredBytes)
 {
 	sessionPtr->_recvEvent._owner = nullptr;
 
 	if (transferredBytes == 0)
 	{
-		return false;
+		return C_Network::NetworkErrorCode::NONE; // 정상 종료로 판단.
 	}
 	
 	if (!sessionPtr->_recvBuffer.MoveRearRetBool(transferredBytes))
 	{
 		//sessionPtr->CheckDisconnect();
 		TODO_LOG_ERROR;
-		printf("Buffer Overflow\n");
-		return false;
+		return C_Network::NetworkErrorCode::RECV_BUF_OVERFLOW;
 	}
 
 	uint dataSize = sessionPtr->_recvBuffer.GetUseSize();
@@ -300,14 +299,13 @@ bool C_Network::NetworkBase::ProcessRecv(Session* sessionPtr, DWORD transferredB
 		if (bufferSize < (sizeof(PacketHeader) + header.size))
 			break;
 		
-
 		sessionPtr->_recvBuffer.MoveFront(sizeof(header));
 
 		if (!sessionPtr->_recvBuffer.DequeueRetBool(tempBuffer.GetRearPtr(), header.size))
 		{
 			TODO_LOG_ERROR; printf("OnRecv Dequeue Error\n");
-			TODO_UPDATE_EX_LIST; // 이 경우에 session Disconnect?
-			break;
+			TODO_UPDATE_EX_LIST; 
+			return C_Network::NetworkErrorCode::RECV_BUF_DEQUE_FAILED;
 		}
 		
 		tempBuffer.MoveRearPos(header.size);
@@ -321,10 +319,10 @@ bool C_Network::NetworkBase::ProcessRecv(Session* sessionPtr, DWORD transferredB
 
 	sessionPtr->PostRecv();
 
-	return true;
+	return C_Network::NetworkErrorCode::NONE;
 }
 
-bool C_Network::NetworkBase::ProcessSend(Session* sessionPtr, DWORD transferredBytes)
+C_Network::NetworkErrorCode C_Network::NetworkBase::ProcessSend(Session* sessionPtr, DWORD transferredBytes)
 {
 	return sessionPtr->ProcessSend(transferredBytes);
 }
@@ -356,15 +354,15 @@ C_Network::NetServer::~NetServer()
 {
 }
 
-void C_Network::NetServer::Begin()
+C_Network::NetworkErrorCode C_Network::NetServer::Begin()
 {
 	NetworkBase::Begin();
 
 	_listenSock = socket(AF_INET, SOCK_STREAM, 0);
 	if (_listenSock == INVALID_SOCKET)
 	{
-		TODO_LOG_ERROR_WSA("Create Sock");
-		CCrash(L"Listen socket is Invalid");
+		TODO_LOG_ERROR;
+		return C_Network::NetworkErrorCode::CREATE_SOCKET_FAILED;
 	}
 
 	LINGER linger;
@@ -375,22 +373,23 @@ void C_Network::NetServer::Begin()
 
 	if (bindRet == SOCKET_ERROR)
 	{
-		TODO_LOG_ERROR_WSA("Bind");
-		CCrash(L"Bind Error\n");
+		TODO_LOG_ERROR;
+		return C_Network::NetworkErrorCode::BIND_FAILED;
+
 	}
 
 	DWORD listenRet = ::listen(_listenSock, SOMAXCONN);
 	if (listenRet == SOCKET_ERROR)
 	{
-		TODO_LOG_ERROR_WSA("Listen");
-		CCrash(L"listen Error\n");
+		TODO_LOG_ERROR;
+		return C_Network::NetworkErrorCode::LISTEN_FAILED;
 	}
 
 	// TODO_
 	_acceptThread = std::thread([this]() { this->AcceptThread(); });
 }
 
-void C_Network::NetServer::End()
+C_Network::NetworkErrorCode C_Network::NetServer::End()
 {
 	closesocket(_listenSock);
 	_listenSock = INVALID_SOCKET;
@@ -398,7 +397,7 @@ void C_Network::NetServer::End()
 	if (_acceptThread.joinable())
 		_acceptThread.join();	
 	
-	NetworkBase::End();
+	return NetworkBase::End();
 }
 
 void C_Network::NetServer::AcceptThread()
@@ -425,9 +424,7 @@ void C_Network::NetServer::AcceptThread()
 		}
 
 		Session* newSession = CreateSession(clientSock, &clientInfo);
-		
-		//printf("client join\n");
-		
+				
 		newSession->ProcessAccept();
 
 		OnConnected(clientInfo, newSession->GetId());

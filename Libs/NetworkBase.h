@@ -16,8 +16,8 @@ namespace C_Network
 		NetworkBase(const NetAddress& netAddr, uint maxSessionCnt);
 		virtual ~NetworkBase() = 0;
 
-		virtual void Begin();
-		virtual void End();
+		virtual NetworkErrorCode Begin();
+		virtual NetworkErrorCode End();
 
 		virtual bool OnConnectionRequest(const SOCKADDR_IN& clientInfo);
 		virtual void OnConnected(const SOCKADDR_IN& clientInfo, ULONGLONG sessionId); 
@@ -31,8 +31,8 @@ namespace C_Network
 	private:
 		void ProcessAccept(Session* sessionPtr, DWORD transferredBytes = 0);
 		void ProcessConnect(Session* sessionPtr, DWORD transferredBytes = 0);
-		bool ProcessRecv(Session* sessionPtr, DWORD transferredBytes = 0);
-		bool ProcessSend(Session* sessionPtr, DWORD transferredBytes = 0);
+		C_Network::NetworkErrorCode ProcessRecv(Session* sessionPtr, DWORD transferredBytes = 0);
+		C_Network::NetworkErrorCode ProcessSend(Session* sessionPtr, DWORD transferredBytes = 0);
 		bool ProcessDisconnect(Session* sessionPtr, DWORD transferredBytes = 0);
 		
 		//void AddSession();
@@ -41,7 +41,7 @@ namespace C_Network
 		void WorkerThread();
 		HANDLE _iocpHandle;
 		std::vector<std::thread> _workerThreads;
-
+		std::thread _fileLogThread;
 		//std::unordered_map<ULONGLONG, SharedSession> _sessionMap; // [ Server - User Count / Client - Dummy Count]
 
 
@@ -50,6 +50,7 @@ namespace C_Network
 		const NetAddress _netAddr; 
 	private:
 		std::unique_ptr<SessionManager> _sessionMgr;
+		std::unique_ptr<C_Utility::FileLogger> _logger;
 
 		// NetServer -> listen EndPoint
 		// NetClient -> dest EndPoint
@@ -65,8 +66,8 @@ namespace C_Network
 		NetServer(const NetAddress& netAddr, uint maxSessionCnt);
 		virtual ~NetServer();
 
-		virtual void Begin() override final;
-		virtual void End() override final;
+		virtual C_Network::NetworkErrorCode Begin() override final;
+		virtual C_Network::NetworkErrorCode End() override final;
 
 	private:
 		void AcceptThread();

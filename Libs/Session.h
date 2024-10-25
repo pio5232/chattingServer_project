@@ -77,7 +77,7 @@ namespace C_Network
 		bool CanDisconnect(); // true - Disconn, false - connecting.
 
 		//bool ProcessRecv(DWORD transferredBytes);
-		bool ProcessSend(DWORD transferredBytes);
+		C_Network::NetworkErrorCode ProcessSend(DWORD transferredBytes);
 		bool ProcessConnect();
 		bool ProcessAccept();
 		bool ProcessDisconnect();
@@ -113,6 +113,11 @@ namespace C_Network
 
 
 	};
+
+
+	/*--------------------------------------
+				Session Manager
+	--------------------------------------*/
 
 	class SessionManager
 	{

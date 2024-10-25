@@ -89,7 +89,7 @@ bool C_Network::Session::CanDisconnect()
 	return InterlockedDecrement(&_ioCount) == 0;
 }
 
-bool C_Network::Session::ProcessSend(DWORD transferredBytes)
+C_Network::NetworkErrorCode C_Network::Session::ProcessSend(DWORD transferredBytes)
 {
 	_sendEvent._owner = nullptr;
 	_sendEvent._pendingBuffs.clear();
@@ -97,11 +97,11 @@ bool C_Network::Session::ProcessSend(DWORD transferredBytes)
 	InterlockedExchange8(&_sendFlag, 0);
 
 	if (transferredBytes == 0)
-		return false;
+		return C_Network::NetworkErrorCode::SEND_LEN_ZERO;
 
 	PostSend();
 
-	return true;
+	return C_Network::NetworkErrorCode::NONE;
 }
 
 

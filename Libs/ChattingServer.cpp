@@ -3,7 +3,13 @@
 
 C_Network::ChattingServer::ChattingServer(const NetAddress& netAddr, uint maxSessionCnt) : NetServer(netAddr, maxSessionCnt)
 {
-	_roomMgr = std::make_unique<RoomManager>();
+	const uint roomCnt = 20;
+	
+	uint maxRoomUserCnt = maxSessionCnt / roomCnt;
+	if (maxSessionCnt % roomCnt != 0)
+		++maxRoomUserCnt;
+	
+	_roomMgr = std::make_unique<RoomManager>(roomCnt, maxRoomUserCnt);
 }
 
 C_Network::ChattingServer::~ChattingServer()

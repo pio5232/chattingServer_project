@@ -14,19 +14,9 @@
 #include "Utils.h"
 #include "NetworkUtils.h"
 
+#include "NetworkErrorCode.h"
 #include "Session.h"
 
-class LOGGGG
-{
-public:
-	void WriteLog(std::string s)
-	{
-		log += s + "\n";
-	}
-	
-public:
-	static std::string log;
-};
 inline void CCrash(const WCHAR* resaon)
 {
 	wprintf(L"%s\n", resaon);
